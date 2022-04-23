@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<extension version="4.1" type="plugin" group="task" method="upgrade">
+	<name>plugin Task Cinema</name>
+	<author>conseilgouz</author>
+	<creationDate>2022 April</creationDate>
+	<copyright>Copyright (C) 2022 ConseilGouz. All rights reserved.</copyright>
+	<license>GNU General Public License version 2 or later; see LICENSE.txt</license>
+	<authorEmail>pascal.leconte@conseilgouz.com</authorEmail>
+	<authorUrl>www.conseilgouz.com</authorUrl>
+	<version>4.0.0</version>
+	<description>PLG_TASK_CINEMA_DESC</description>
+	<files>
+		<filename plugin="cinema">cinema.php</filename>
+		<folder>forms</folder>		
+	</files>
+    <languages>
+		<language tag="fr-FR">language/fr-FR/plg_task_cinema.ini</language>
+		<language tag="fr-FR">language/fr-FR/plg_task_cinema.sys.ini</language>
+	</languages>
+	<scriptfile>script.php</scriptfile>	
+	<changelogurl>https://www.conseilgouz.com/updates/plg_task_cinema_changelog.xml</changelogurl>
+	
+  <updateservers>
+    <server type="extension" name="task majpostit" priority="1">https://www.conseilgouz.com/updates/plg_task_cinema_update.xml</server>
+   </updateservers>
+	
+</extension>
