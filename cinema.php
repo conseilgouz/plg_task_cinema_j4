@@ -1,7 +1,7 @@
 <?php
 /** Cinema Task
-* Version			: 4.0.0
-* Package			: Joomla 4.1
+* Version			: 4.1.0
+* Package			: Joomla 4.x
 * copyright 		: Copyright (C) 2022 ConseilGouz. All rights reserved.
 * license    		: http://www.gnu.org/licenses/gpl-2.0.html GNU/GPL
 *
@@ -65,107 +65,93 @@ class PlgTaskCinema extends CMSPlugin implements SubscriberInterface
 		$app = Factory::getApplication();
 		$this->myparams = $event->getArgument('params');
 		
-		$addr = "http://www.cinemadifference.com/Montreuil.html";
-		$user_agent = 'Mozilla HotFox 1.0';
-
+		$addr = "https://culture-relax.org/theater/cinema-le-melies";
+		$user_agent = 'Curl/1.0';
+/*
 		$ch = curl_init();
 		curl_setopt($ch, CURLOPT_URL, $addr);
 		curl_setopt($ch, CURLOPT_USERAGENT, $user_agent);
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-		curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
 		curl_setopt($ch, CURLOPT_HEADER, 0);
 		curl_setopt($ch, CURLOPT_NOBODY, 0);
-		curl_setopt($ch, CURLOPT_TIMEOUT, 30);
-		$res = curl_exec($ch);
-		curl_close($ch);
+		curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 0);
+		curl_setopt($ch, CURLOPT_TIMEOUT, 120);
+		curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+		curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
+
+		curl_setopt($ch,CURLOPT_FOLLOWLOCATION,TRUE);
+		curl_setopt($ch,CURLOPT_MAXREDIRS,10000); # Fix by Nicholas
 		
-		$res = str_replace("\n", "", $res);
-		$dates = $this->getTextBetween($res,'dl',2);
-		$mois = ['janvier' => 'january','février' => 'february','mars' => 'march',
-				'avril' => 'april','mai' => 'may', 'juin' => 'june', 'juillet' => "july",
-				'août' => 'august','septembre' => 'september', 'octobre' => 'october',
-				'novembre' => 'november', 'décembre' => 'december'
-		];
-		foreach ($dates as $date) {
-			$unedate = $this->getTextBetween($date,'dt',2)[0];
-			if (strpos($unedate,'<strong>') === false) continue; // ce n'est pas une date
-			$unedate = str_replace(array('<strong>','</strong>','Le ',' à' ),'',$unedate);
-			$unedate = str_replace('&nbsp;',' ',$unedate);
-			$unedate =str_replace(array('lundi ','mardi ','mercredi ','jeudi ','vendredi ','samedi ','dimanche ' ),'',$unedate);
-			$unedate =strtr($unedate,$mois);
-			$dateus = date('Y-m-d H:i:00',strtotime($unedate));
-			$create = true;
-			if ($this->checkJEvent('handicaps-ensemble',$dateus)) {
-				$create = false; // la date existe déjà dans JEvents
-			}
-			// create a new event
-			$this->createJEvent($date,$unedate,$dateus,$create);
+		$res = curl_exec($ch);
+		echo 'Erreur Curl : ' . curl_error($ch);
+		curl_close($ch);
+		*/
+		
+		$fp = @fopen($addr, "r") ;
+		
+		$data = "" ;
+		if($fp) {
+		    while (!feof($fp)) {
+		        $data .= fread($fp, 1024) ;
+		    }
+		}
+		fclose($fp) ;
+		    
+//		$res = str_replace("\n", "", $res);
+		$deb = strpos($data,'<script id="__NEXT_DATA__" type="application/json">');
+		$json = substr($data,$deb+51);
+		$end = strpos($json,'</script>');
+		$json = substr($json,0,$end);
+		$decode  = json_decode($json);
+		$events = $decode->props->pageProps->eventSessions->data;
+		
+		foreach($events as $one) {
+		    if ($one->attributes->eventSessionType != "Movie") continue;
+		    $datetime = date('Y-m-d H:i:00',strtotime($one->attributes->date.' '.$one->attributes->time));
+		    if ($datetime < date('Y-m-d H:i:00')) continue; // ignore passed dates
+		    $create = true;
+		    if ($this->checkJEvent('handicaps-ensemble',$datetime)) {
+		        $create = false; // la date existe déjà dans JEvents
+		    }
+		    // create a new event
+		    $this->createJEvent($one->attributes,$create);
 		}
 		return TaskStatus::OK;		
 	}
-	private function getTextBetween($string,$tag,$indice)
-	{
-	    $pattern = '#<'.$tag.'(.*?)>(.*?)</'.$tag.'>#i';
-	    preg_match_all($pattern, $string, $matches);
-	    return ($matches[$indice]);
-	}
-	private function createJEvent($text,$unedate,$dateus,$create) {
+	private function createJEvent($one,$create) {
+	    $mois = ['Jan' => 'janvier' ,'Feb' => 'février','Mar' => 'mars',
+	        'Apr' => 'avril','May' => 'mai', 'Jun' => 'juin', 'Jul' => "juillet",
+	        'Aug' => 'août','Sept' => 'septembre', 'Oct' => 'octobre',
+	        'Nov' => 'novembre', 'Dec' => 'décembre'
+	    ];
 	    // date de l'événement
-		$description = $this->getTextBetween($text,'dt',2)[0].'&nbsp;';
-		// lieu
-		$pattern = '#<dd class="crayon(.*?) lieu">(.*?)</dd>#i';
-	    preg_match_all($pattern, $text, $matches);
-		$description .= '<br/>'.$matches[2][0].'&nbsp;';
-		// autres informations de l'événement
-		$pattern = '#<dd class="clearfix">(.*?)</dd>#i';
-	    preg_match_all($pattern, $text, $matches);
-	    $description .= $matches[1][0];
-		$description = str_replace('spip_documents_left','float-left" style="margin-right:1em"',$description);
-		$description = str_replace('a href="','a target="_blank" href="https://www.cinemadifference.com/',$description);
-		// add cinemadifference link
-		$description .= '<p style="clear:both">&nbsp;</p><p><a href="http://www.cinemadifference.com/Montreuil.html" target="_blank" rel="noopener">Accéder à la page Montreuil du site Ciné Ma Différence</a></p>';
-		// get images and copy them to images directory
-		$pattern = '#src="(.*?)" height#i';
-	    preg_match_all($pattern, $text, $matches);
-	    $img = $matches[1][0];
-	    $imgpos = strpos($img,'arton');
-	    $imgname = substr($img,$imgpos,strpos($img,'?')- $imgpos);
-	    $new = JPATH_ROOT.'/images/cinemadifference/'.$imgname;
-	    if (!copy('http://www.cinemadifference.com/'.$img,$new) ) {
-	        echo "La copie $img du fichier a échoué...\n";
+	    $ladate = date('d M Y à H:i',strtotime($one->date.' '.$one->time));
+	    $ladate =strtr($ladate,$mois);
+	    $description = '<p><b>Séance le '.$ladate.'</b>.</p>';
+	    // $description .= $one->location;
+	    if ($one->movie->data) {
+            $movie = $one->movie->data->attributes;
+            $description .= '<p class="cinema_title">'.$movie->title.'. </p>';
+            $description .= '<p class="cinema_duration">'.$movie->genres.', durée : '.$movie->duration.'. </p>';
+            if ($movie->featured_image_url) {
+                $description .= "<p class='cinema_img_p'><img src='".$movie->featured_image_url."' class='cinema_img' style='float:left; max-width: 30%; height: auto; margin-right: 1em;'/></p>";
+            }
+            $description .= '<p class="cinema_descr">.'.$movie->description."</p>";
+	    } else { // programmation en cours
+	        $description .= "<p class='cinema_img_p'><img src='https://culture-relax.org/img/tba.png' class='cinema_img' style='float:left; max-width: 10%; height: auto; margin-right: 1em;'/></p>";
+            $description .= '<p class="cinema_descr">'.$one->additionalInformation.'. </p>';
+            $description .= '<p class="cinema_desc">La programmation n’est pas encore choisie.<br>Elle sera mise en ligne au fur et à mesure, et les abonnés à la Lettre d\'Information la recevront automatiquement.</p>';
 	    }
-		// update image 
-	    $description = str_replace($img,'images/cinemadifference/'.$imgname,$description);
-		// get pdf 
-		$strpos = strpos($description,"nom_fichier=affiche");
-		$nofichier = substr($description,$strpos+20,4);
-		$addr = "http://www.cinemadifference.com/spip.php?page=spipdf&spipdf=affiche_cinediff&id_evenement=".$nofichier."&nom_fichier=affiche_".$nofichier;
-		$user_agent = 'Mozilla HotFox 1.0';
-		$ch = curl_init();
-		curl_setopt($ch, CURLOPT_URL, $addr);
-		curl_setopt($ch, CURLOPT_USERAGENT, $user_agent);
-		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-		curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
-		curl_setopt($ch, CURLOPT_HEADER, 0);
-		curl_setopt($ch, CURLOPT_NOBODY, 0);
-		curl_setopt($ch, CURLOPT_TIMEOUT, 30);
-		$res = curl_exec($ch);
-		curl_close($ch);
-		$file = fopen(JPATH_ROOT.'/images/cinemadifference/affiche_'.$nofichier.'.pdf','w');
-		fwrite($file,$res);
-		fclose($file);
-		// update pdf link
-		$addr = "https://www.cinemadifference.com/spip.php?page=spipdf&amp;spipdf=affiche_cinediff&amp;id_evenement=".$nofichier."&amp;nom_fichier=affiche_".$nofichier;
-		$description = str_replace($addr,'images/cinemadifference/affiche_'.$nofichier.'.pdf',$description);
+		$description .= '<p style="clear:both">&nbsp;</p><p><a href="https://culture-relax.org/organizer/1085-montreuil" target="_blank" rel="noopener">Accéder à la page Montreuil du site Ciné Relax</a></p>';
 	    // store this in jevents
 		$db = Factory::getDbo();
 		if ($create) { // new event
 			$obj = new \stdClass();
-			$obj->dtstart = strtotime($unedate);
-			$obj->dtend = strtotime(date('Y-m-d 23:59:59',strtotime($unedate)));
+			$obj->dtstart = strtotime($one->date.' '.$one->time);
+			$obj->dtend = strtotime(date('Y-m-d 23:59:59',strtotime($one->date)));
 			$obj->description = $description;
 			$obj->location = "Cinéma le Méliès, Montreuil";
-			$obj->summary = "Ciné Ma Différence";
+			$obj->summary = "Ciné Relax";
 			$obj->noendtime = 1;
 			$obj->multiday = 1;
 			$obj->state = 1;
@@ -188,9 +174,9 @@ class PlgTaskCinema extends CMSPlugin implements SubscriberInterface
 			$obj = new \stdClass();
 			$obj->eventid = $new_event_id;
 			$obj->eventdetail_id = $new_detail_id;
-			$obj->startrepeat = $dateus;
-			$obj->endrepeat = date('Y-m-d 23:59:59',strtotime($unedate));
-			$obj->duplicatecheck = md5($new_event_id . strtotime($unedate));
+			$obj->startrepeat = $one->date.' '.$one->time;
+			$obj->endrepeat = date('Y-m-d 23:59:59',strtotime($one->date));
+			$obj->duplicatecheck = md5($new_event_id . strtotime($one->date.' '.$one->time));
 			$result = $db->insertObject('#__jevents_repetition', $obj);
 		} else { // update event
 			$updateNulls = true;
@@ -199,7 +185,7 @@ class PlgTaskCinema extends CMSPlugin implements SubscriberInterface
 				$db->quoteName('description') . ' = ' . $db->quote($description)
 				);
 			$conditions = array(
-				$db->quoteName('dtstart') . ' = '.strtotime($unedate)
+				$db->quoteName('dtstart') . ' = '.strtotime($one->date.' '.$one->time)
 				);				
 				$query->update($db->quoteName('#__jevents_vevdetail'))->set($fields)->where($conditions);		
 			$db->setQuery($query);
