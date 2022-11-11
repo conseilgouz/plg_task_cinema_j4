@@ -3,6 +3,21 @@
 		<element>cinema</element>
 		<type>plugin</type>
 		<group>task</group>
+		<version>4.1.1</version>
+        <note>
+            <item>11/11/2022</item>
+        </note>
+        <change>
+            <item>Utilisation Curl</item>
+        </change>
+        <addition>
+            <item>Ajout lieu</item>
+        </addition>
+	</changelog>
+	<changelog>
+		<element>cinema</element>
+		<type>plugin</type>
+		<group>task</group>
 		<version>4.1.0</version>
         <note>
             <item>10/11/2022</item>
