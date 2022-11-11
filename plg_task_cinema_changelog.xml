@@ -3,6 +3,18 @@
 		<element>cinema</element>
 		<type>plugin</type>
 		<group>task</group>
+		<version>4.2.0</version>
+        <note>
+            <item>11/11/2022</item>
+        </note>
+        <change>
+            <item>Appel direct à l'API</item>
+        </change>
+	</changelog>
+	<changelog>
+		<element>cinema</element>
+		<type>plugin</type>
+		<group>task</group>
 		<version>4.1.1</version>
         <note>
             <item>11/11/2022</item>

@@ -1,6 +1,6 @@
 <?php
 /** Cinema Task
-* Version			: 4.1.1
+* Version			: 4.2.0
 * Package			: Joomla 4.x
 * copyright 		: Copyright (C) 2022 ConseilGouz. All rights reserved.
 * license    		: http://www.gnu.org/licenses/gpl-2.0.html GNU/GPL
@@ -65,7 +65,7 @@ class PlgTaskCinema extends CMSPlugin implements SubscriberInterface
 		$app = Factory::getApplication();
 		$this->myparams = $event->getArgument('params');
 		
-		$addr = "https://culture-relax.org/theater/cinema-le-melies";
+		$addr = 'https://strapi.culture-relax.org/api/event-sessions?populate=deep,2&filters[$and][0][date][$gt]='.date('Y-m-d').'&filters[organizer][slug][$eq]=1085-montreuil';
 		$user_agent = 'Curl/1.0';
 
 		$ch = curl_init();
@@ -83,27 +83,9 @@ class PlgTaskCinema extends CMSPlugin implements SubscriberInterface
 		curl_setopt($ch,CURLOPT_MAXREDIRS,10000); # Fix by Nicholas
 		
 		$data = curl_exec($ch);
-		echo 'Erreur Curl : ' . curl_error($ch);
 		curl_close($ch);
-/*		
-		$fp = @fopen($addr, "r") ;
-		
-		$data = "" ;
-		if($fp) {
-		    while (!feof($fp)) {
-		        $data .= fread($fp, 1024) ;
-		    }
-		}
-		fclose($fp) ;
-	*/	    
-//		$res = str_replace("\n", "", $res);
-		$deb = strpos($data,'<script id="__NEXT_DATA__" type="application/json">');
-		$json = substr($data,$deb+51);
-		$end = strpos($json,'</script>');
-		$json = substr($json,0,$end);
-		$decode  = json_decode($json);
-		$events = $decode->props->pageProps->eventSessions->data;
-		$theater = $decode->props->pageProps->theater;
+		$decode  = json_decode($data);
+		$events = $decode->data;
 		foreach($events as $one) {
 		    if ($one->attributes->eventSessionType != "Movie") continue;
 		    $datetime = date('Y-m-d H:i:00',strtotime($one->attributes->date.' '.$one->attributes->time));
@@ -113,6 +95,7 @@ class PlgTaskCinema extends CMSPlugin implements SubscriberInterface
 		        $create = false; // la date existe déjà dans JEvents
 		    }
 		    // create a new event
+		    $theater = $one->attributes->theater->data->attributes;
 		    $this->createJEvent($one->attributes,$theater,$create);
 		}
 		return TaskStatus::OK;		
@@ -126,16 +109,18 @@ class PlgTaskCinema extends CMSPlugin implements SubscriberInterface
 	    // date de l'événement
 	    $ladate = date('d M Y à H:i',strtotime($one->date.' '.$one->time));
 	    $ladate =strtr($ladate,$mois);
-	    $description = '<p><b>Séance le '.$ladate.'</b>.</p>';
+	    $description = '<p><b>Séance du '.$ladate.'</b>.</p>';
 	    $description .= '<p><b>Lieu</b> : '.$theater->name.'</p>';
 	    if ($one->movie->data) {
             $movie = $one->movie->data->attributes;
-            $description .= '<p class="cinema_title">'.$movie->title.'. </p>';
-            $description .= '<p class="cinema_duration">'.$movie->genres.', durée : '.$movie->duration.'. </p>';
             if ($movie->featured_image_url) {
                 $description .= "<p class='cinema_img_p'><img src='".$movie->featured_image_url."' class='cinema_img' style='float:left; max-width: 30%; height: auto; margin-right: 1em;'/></p>";
             }
-            $description .= '<p class="cinema_descr">.'.$movie->description."</p>";
+            $description .= '<p class="cinema_title" style="font-size:120%"><b>'.$movie->title.'.</b> </p>';
+            $duration = date('H\\hi',strtotime($movie->duration));
+            $description .= '<p class="cinema_duration">'.$movie->genres.' ('.$duration.') de '.$movie->director.'</p>';
+            if ($movie->actor)  $description .= '<p class="cinema_avec">Avec : '.$movie->actor.'</p>';
+            $description .= '<p class="cinema_descr">'.$movie->description."</p>";
 	    } else { // programmation en cours
 	        $description .= "<p class='cinema_img_p'><img src='https://culture-relax.org/img/tba.png' class='cinema_img' style='float:left; max-width: 10%; height: auto; margin-right: 1em;'/></p>";
             $description .= '<p class="cinema_descr">'.$one->additionalInformation.'. </p>';
