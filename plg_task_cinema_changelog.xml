@@ -3,6 +3,19 @@
 		<element>cinema</element>
 		<type>plugin</type>
 		<group>task</group>
+		<version>4.2.1</version>
+        <note>
+            <item>17/11/2022</item>
+        </note>
+        <addition>
+            <item>Bande annonce</item>
+            <item>Info complémentaire</item>
+        </addition>
+	</changelog>
+	<changelog>
+		<element>cinema</element>
+		<type>plugin</type>
+		<group>task</group>
 		<version>4.2.0</version>
         <note>
             <item>11/11/2022</item>

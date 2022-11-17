@@ -65,7 +65,7 @@ class PlgTaskCinema extends CMSPlugin implements SubscriberInterface
 		$app = Factory::getApplication();
 		$this->myparams = $event->getArgument('params');
 		
-		$addr = 'https://strapi.culture-relax.org/api/event-sessions?populate=deep,2&filters[$and][0][date][$gt]='.date('Y-m-d').'&filters[organizer][slug][$eq]=1085-montreuil';
+		$addr = 'https://strapi.culture-relax.org/api/event-sessions?populate=deep,2&filters[date][$gt]='.date('Y-m-d').'&filters[organizer][slug][$eq]=1085-montreuil';
 		$user_agent = 'Curl/1.0';
 
 		$ch = curl_init();
@@ -121,6 +121,8 @@ class PlgTaskCinema extends CMSPlugin implements SubscriberInterface
             $description .= '<p class="cinema_duration">'.$movie->genres.' ('.$duration.') de '.$movie->director.'</p>';
             if ($movie->actor)  $description .= '<p class="cinema_avec">Avec : '.$movie->actor.'</p>';
             $description .= '<p class="cinema_descr">'.$movie->description."</p>";
+            if ($movie->trailer) $description .= '<p>&nbsp;</p><p style="text-align:center"><b>La bande annonce</b></p><p>{up media_plyr=video | class=col-6 | style=margin-left:auto;margin-right:auto | poster='.$movie->featured_image_url.' | mp4='.$movie->trailer.'}</p>';
+			if ($one->additionalInformation) $description .= '<p>&nbsp;</p><p class="cinema_addition">'.$one->additionalInformation.'</p>';
 	    } else { // programmation en cours
 	        $description .= "<p class='cinema_img_p'><img src='https://culture-relax.org/img/tba.png' class='cinema_img' style='float:left; max-width: 10%; height: auto; margin-right: 1em;'/></p>";
             $description .= '<p class="cinema_descr">'.$one->additionalInformation.'. </p>';
